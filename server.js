@@ -20,19 +20,65 @@ const schema = buildSchema(`
 
     type Mutation {
         signup(username: String!,password: String!, email: String!): User
-    }
+
+        createEmployee(firstname: String!, lastname: String!, email: String!, gender: String!, salary: String!): Employee    }
 
     type Query {
         login(username: String!, password: String!): User
+        
+        getAllEmployees: [Employee]
+    }
+    type Employee {
+        id: ID!
+        firstname: String!
+        lastname: String!
+        email: String!
+        gender: String!
+        salary: Float!
     }
 `);
 
 // User Model
 const User = mongoose.model('User', {
-    username: String,
-    email: { type: String, unique: true },
-    password: String
+    username: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        unique: true,
+        required: true
+    },
+    password: {
+        type: String,
+        required: true
+    }
 });
+
+
+const Employee = mongoose.model('Employee', {
+    firstname: {
+        type: String,
+        required: true
+    },
+    lastname: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        unique: true
+    },
+    gender: {
+        type: String,
+        enum: ['Male', 'Female', 'Other']
+    },
+    salary: {
+        type: Number,
+        required: true
+    }
+});
+
 
 
 const root = {
@@ -65,8 +111,22 @@ const root = {
             throw new Error('Invalid password');
         }
         return user;
+    },
+    getAllEmployees: async () => {
+        try {
+            const employee = await Employee.find();
+            return employee;
+        } catch (error) {
+            throw new Error('Unable to fetch employees');
+        }
+    },
+    createEmployee: async ({ firstname, lastname, email, gender, salary }) => {
+        const employee = new Employee({ firstname, lastname, email, gender, salary });
+        await employee.save();
+        return employee;
     }
 };
+
 
 
 app.use('/graphql', graphqlHTTP({

@@ -19,24 +19,27 @@ const schema = buildSchema(`
     }
 
     type Mutation {
-        signup(username: String!,password: String!, email: String!): User
-
-        createEmployee(firstname: String!, lastname: String!, email: String!, gender: String!, salary: String!): Employee    }
+        signup(username: String!, password: String!, email: String!): User
+        createEmployee(firstname: String!, lastname: String!, email: String!, gender: String!, salary: String!): Employee
+        updateEmployee(id: ID!, firstname: String, lastname: String, email: String, gender: String, salary: String): Employee
+        deleteEmployee(id: ID!): String
+    }
 
     type Query {
         login(username: String!, password: String!): User
-        
         getAllEmployees: [Employee]
+        getEmployeeById(id: ID!): Employee
     }
+
     type Employee {
         id: ID!
         firstname: String!
         lastname: String!
         email: String!
         gender: String!
-        salary: Float!
+        salary: String!
     }
-`);
+    `);
 
 // User Model
 const User = mongoose.model('User', {
@@ -85,17 +88,17 @@ const root = {
     // Sign Up
 
     signup: async ({ username, password, email }) => {
-        // If the email already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            throw new Error('Email already exists');
+        try {
+            // Hash the password
+            const hashedPassword = await bcrypt.hash(password, 10);
+            
+            // Create a new user with the hashed password
+            const user = new User({ username, password: hashedPassword, email });
+            await user.save();
+            return user;
+        } catch (error) {
+            throw new Error('Unable to create user or is in the database');
         }
-
-        // Hashes the password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ username, password: hashedPassword, email });
-        await user.save();
-        return user;
     },
 
     // Login
@@ -114,8 +117,8 @@ const root = {
     },
     getAllEmployees: async () => {
         try {
-            const employee = await Employee.find();
-            return employee;
+            const employees = await Employee.find();
+            return employees;
         } catch (error) {
             throw new Error('Unable to fetch employees');
         }
@@ -124,6 +127,31 @@ const root = {
         const employee = new Employee({ firstname, lastname, email, gender, salary });
         await employee.save();
         return employee;
+    },
+    getEmployeeById: async ({ id }) => {
+        try {
+            const employee = await Employee.findById(id);
+            return employee;
+        } catch (error) {
+            throw new Error('Employee not found');
+        }
+    },
+    updateEmployee: async ({ id, firstname, lastname, email, gender, salary }) => {
+        try {
+            const employee = await Employee.findByIdAndUpdate(id, { firstname, lastname, email, gender, salary }, { new: true });
+            return employee;
+        } catch (error) {
+            throw new Error('Unable to update employee');
+        }
+    },
+    
+    deleteEmployee: async ({ id }) => {
+        try {
+            await Employee.findByIdAndDelete(id);
+            return 'Employee deleted successfully';
+        } catch (error) {
+            throw new Error('Unable to delete employee');
+        }
     }
 };
 
